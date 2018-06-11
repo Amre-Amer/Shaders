@@ -3,15 +3,13 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class WaveTracker : MonoBehaviour {
-	int numGos = 3;
+	int numGos = 1;
 	[Range(0f, .1f)]
     public float speed = .05f;
-	[Range(-1, 100)]
-    public float sound = 1;
 	[Range(0f, 1f)]
     public float thickness = .15f;
-	[Range(0, 100)]
-	public float size = 21;
+	[Range(0f, 1f)]
+	public float size = .5f;
 	[Space]
 	[Header("Ave Distance Between")]
     [Range(0, 8)]
@@ -33,6 +31,8 @@ public class WaveTracker : MonoBehaviour {
 	float spacingFloors = .1f;
 	int cntFrames;
 	AudioSource audioSource;
+	float min = -1;
+	float max = -1;
 	// Use this for initialization
 	void Start () {
 		CreateFloor();
@@ -94,7 +94,17 @@ public class WaveTracker : MonoBehaviour {
 	float GetAmplitude() {
 		float[] sample = new float[1];
 		audioSource.GetOutputData(sample, 0);
-		return sample[0];
+		float value = sample[0];
+		if (min == -1 || value < min) {
+			min = value;
+		}
+		if (max == -1 || value > max)
+        {
+            max = value;
+        }
+		float range = max - min;
+		float amplitude = (value - min) / range;
+		return amplitude;
 	}
 	void UpdateShader()
     {
@@ -108,7 +118,7 @@ public class WaveTracker : MonoBehaviour {
 			if (n == 0) {
 				amplitudes[n] = GetAmplitude();
 			} else {
-				amplitudes[n] = Mathf.Sin(cntFrames * Mathf.Deg2Rad) * .5f + .5f;
+				amplitudes[n] = 0; //Mathf.Sin(cntFrames * Mathf.Deg2Rad) * .5f + .5f;
 			}
 		}
 		material.SetVectorArray("_Centers", gos4);
@@ -117,7 +127,7 @@ public class WaveTracker : MonoBehaviour {
 		material.SetFloat("_RangeRed", rangeRed);
 		material.SetFloat("_RangeGreen", rangeGreen);
 		material.SetFloat("_RangeBlue", rangeBlue);
-		material.SetFloat("_Sound", sound);
+		//material.SetFloat("_Sound", sound);
 		material.SetFloat("_Thickness", thickness);
 		material.SetFloatArray("_Amplitudes", amplitudes);
     }

@@ -1,5 +1,6 @@
 ﻿Shader "Custom/WaveTracker" {
     Properties {
+        _Color ("Color", Color) = (1,1,1,1)
         _MainTex ("Base (RGB)", 2D) = "white" {}
 //        _Param1 ("Wave Params 1", Vector) = (6.0, 2.0, 0.12, 0.0)
 //        _Param2 ("Wave Params 2", Vector) = (12.0, 10.0, 0.03, 0.0)
@@ -19,6 +20,7 @@
         CGPROGRAM
         #pragma surface surf Lambert alpha vertex:vert
 
+        fixed4 _Color;
         sampler2D _MainTex;
         half4 _Param1;
         half4 _Param2;
@@ -34,7 +36,7 @@
 
         void vert (inout appdata_full v) {
             half time = _Time.y;
-            //half u = v.texcoord.x;
+            half u = v.texcoord.x;
             //half w1 = sin(time * _Param1.x - u * _Param1.y) * _Param1.z;
             //half w2 = sin(time * _Param2.x - u * _Param2.y) * _Param2.z;
             //v.vertex.xyz += v.normal * (w1 + w2) * u;
@@ -47,52 +49,62 @@
         };
 
         void surf (Input IN, inout SurfaceOutput o) {
+            fixed4 cTex4 = tex2D (_MainTex, IN.uv_MainTex) * _Color;
+            half3 cTex = cTex4.rgb;
 //            o.Albedo = tex2D (_MainTex, IN.uv_MainTex).rgb;
 
-            half time = _Time.y;
+//            half time = _Time.y;
 //            float rad = _Radius / 2 + _Radius / 10 * sin(time);
 //            float dN = 1 - saturate(d / rad);
             float sumC = 0;
             float sumDist = 0;
+            float minDist = -1; 
             for (int n = 0; n < _NumCenters; n++) {
-                float size = _Size;
                 float offset = 1;
                 float dist = distance(_Centers[n], IN.worldPos);
-                float v = _Amplitudes[n] * 100;
-                time = 1; // live
-                float c = sin(dist * size * v - time * _Sound);
+                float v = _Amplitudes[n];
+                float c = sin(dist / _Size * v);
                 c = (c / 2) + 0.5;
                 if (c > (1 - _Thickness)) {
                    c = 1;
+                   o.Alpha = 1;
                 } else {
                    c = 0;
+                   o.Alpha = 0;
                 }
                 sumC += c;
                 sumDist += dist; 
+                if (n == 0 || dist < minDist) {
+                    minDist = dist;
+                }
             }
-            float cAve = sumC / _NumCenters;
+            float aveValue = sumC / _NumCenters;
+            half3 cValue  = half3(aveValue, aveValue, aveValue);
             //
             float r = 0;
             float g = 0;
             float b = 0;
-            float aveDist = sumDist / _NumCenters;
-            if (aveDist < _RangeRed) {
-                r = 0.75 - cAve;
+            float dist = sumDist / _NumCenters;
+            dist = minDist;
+            if (dist < _RangeRed) {
+                r = 1;
                 g = 0;
                 b = 0;
             }
-            if (aveDist > _RangeRed && aveDist < _RangeGreen) {
+            if (dist > _RangeRed && dist < _RangeGreen) {
                 r = 0;
-                g = 0.75 - cAve;
+                g = 1;
                 b = 0;
             }
-            if (aveDist > _RangeGreen && aveDist < _RangeBlue) {
+            if (dist > _RangeGreen && dist < _RangeBlue) {
                 r = 0;
                 g = 0;
-                b = 0.75 - cAve;
+                b = 1;
             }
-            o.Albedo = half3(cAve + r, cAve + g, cAve + b);
-            o.Alpha = 0.75;
+            half3 cRange = half3(r, g, b);
+            float cAve = (cValue + cTex + cRange) / 3;
+            cAve = sumC;
+            o.Albedo = half3(cAve, cAve, cAve);
         }
         ENDCG
     } 

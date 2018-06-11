@@ -141,9 +141,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   speed: 0.0074
-  sound: 1
   thickness: 0.15
-  size: 5.4
+  size: 0.084
   rangeRed: 2
   rangeGreen: 3
   rangeBlue: 5
