@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class WaveTracker : MonoBehaviour {
-	int numGos = 1;
+	int numGos = 20;
 	[Range(0f, .1f)]
     public float speed = .05f;
 	[Range(0f, 1f)]
@@ -33,11 +33,17 @@ public class WaveTracker : MonoBehaviour {
 	AudioSource audioSource;
 	float min = -1;
 	float max = -1;
+	GameObject parentGo;
+	int nTexture;
+	int numTextures = 3;
+	float scaleFloor = 30;
 	// Use this for initialization
 	void Start () {
+		parentGo = new GameObject("parent");
 		CreateFloor();
 		CreateGos();
 		//CreateFloorClones();
+		InvokeRepeating("ChangeFloorTexture", 1, 3);
 		Debug.Log("gos:" + gos.Length + "\n");
 	}
 	
@@ -82,14 +88,22 @@ public class WaveTracker : MonoBehaviour {
 		gos = new GameObject[numGos];
 		for (int n = 0; n < numGos; n++) {
 			gos[n] = GameObject.CreatePrimitive(PrimitiveType.Cube);
+			gos[n].transform.parent = parentGo.transform;
 			gos[n].transform.position = GetRandomPos();
 		}        		
 	}
 	void CreateFloor() {
 		goFloor = GameObject.CreatePrimitive(PrimitiveType.Quad);
+		goFloor.transform.parent = parentGo.transform;
 		goFloor.transform.eulerAngles = new Vector3(90, 0, 0);
-		goFloor.transform.localScale = new Vector3(10, 10, 10);
+		goFloor.transform.localScale = new Vector3(scaleFloor, scaleFloor, scaleFloor);
 		goFloor.GetComponent<Renderer>().material = new Material(Shader.Find("Custom/WaveTracker"));
+		goFloor.GetComponent<Renderer>().material.mainTexture = Resources.Load<Texture2D>("map1");
+	}
+	void  ChangeFloorTexture() {
+		if (nTexture > numTextures - 1) nTexture = 0;
+		goFloor.GetComponent<Renderer>().material.mainTexture = Resources.Load<Texture2D>("map" + nTexture);
+		nTexture++;
 	}
 	float GetAmplitude() {
 		float[] sample = new float[1];
@@ -118,13 +132,17 @@ public class WaveTracker : MonoBehaviour {
 			if (n == 0) {
 				amplitudes[n] = GetAmplitude();
 			} else {
-				amplitudes[n] = 0; //Mathf.Sin(cntFrames * Mathf.Deg2Rad) * .5f + .5f;
+				//if (n == 1) {
+					//amplitudes[n] = Mathf.Sin(cntFrames * Mathf.Deg2Rad * 3) * .25f + .25f;
+				//} else {
+					amplitudes[n] = 0;
+//				}
 			}
 		}
 		material.SetVectorArray("_Centers", gos4);
 		material.SetInt("_NumCenters", numGos);
 		material.SetFloat("_Size", size);
-		material.SetFloat("_RangeRed", rangeRed);
+		material.SetFloat("_RangeRed", rangeRed); // rangeRed // distNear/2
 		material.SetFloat("_RangeGreen", rangeGreen);
 		material.SetFloat("_RangeBlue", rangeBlue);
 		//material.SetFloat("_Sound", sound);
@@ -140,6 +158,7 @@ public class WaveTracker : MonoBehaviour {
 			float z = goFloor.transform.position.z;
             //
 			GameObject go1 = Instantiate(goFloor);
+			go1.transform.parent = parentGo.transform;
 			go1.transform.position = new Vector3(x, y + yOffset, z);
 			//
             GameObject go2 = Instantiate(goFloor);
@@ -155,6 +174,7 @@ public class WaveTracker : MonoBehaviour {
         {
 			if (targetGos[n] == null) {
 				targetGos[n] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+				targetGos[n].transform.parent = parentGo.transform;
 				targetGos[n].transform.localScale = new Vector3(.25f, .25f, .25f);
 				targetGos[n].GetComponent<Renderer>().material.color = Color.blue;
 			}
@@ -171,6 +191,7 @@ public class WaveTracker : MonoBehaviour {
             if (lookGos[n] == null)
             {
                 lookGos[n] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+				lookGos[n].transform.parent = parentGo.transform;
                 lookGos[n].transform.localScale = new Vector3(.25f, .25f, .25f);
 				lookGos[n].GetComponent<Renderer>().material.color = Color.cyan;
             }

@@ -9,7 +9,6 @@
         _RangeRed ("RangeRed", Float) = 2
         _RangeGreen ("RangeRed", Float) = 3
         _RangeBlue ("RangeRed", Float) = 5
-        _Sound ("Sound", Float) = 1
         _Thickness ("Thickness", Float) = 0.15
     }
     SubShader {
@@ -30,7 +29,6 @@
         float _RangeRed;
         float _RangeGreen;
         float _RangeBlue;
-        float _Sound;
         float _Thickness;
         float _Amplitudes[100];
 
@@ -56,29 +54,28 @@
 //            half time = _Time.y;
 //            float rad = _Radius / 2 + _Radius / 10 * sin(time);
 //            float dN = 1 - saturate(d / rad);
-            float sumC = 0;
+            float sumValue = 0;
             float sumDist = 0;
             float minDist = -1; 
             for (int n = 0; n < _NumCenters; n++) {
-                float offset = 1;
                 float dist = distance(_Centers[n], IN.worldPos);
-                float v = _Amplitudes[n];
-                float c = sin(dist / _Size * v);
-                c = (c / 2) + 0.5;
-                if (c > (1 - _Thickness)) {
-                   c = 1;
-                   o.Alpha = 1;
-                } else {
-                   c = 0;
-                   o.Alpha = 0;
-                }
-                sumC += c;
-                sumDist += dist; 
                 if (n == 0 || dist < minDist) {
                     minDist = dist;
                 }
+                float amp = _Amplitudes[n];
+                float ang = dist * amp / _Size;
+                float v = sin(ang);
+                v = (v / 2) + 0.5;  // saturate?
+                if (v > (1 - _Thickness)) {
+                   v = 1;
+                } else {
+                   v = 0;
+                }
+                sumValue += v;
+                sumDist += dist; 
             }
-            float aveValue = sumC / _NumCenters;
+            //
+            float aveValue = sumValue / _NumCenters;
             half3 cValue  = half3(aveValue, aveValue, aveValue);
             //
             float r = 0;
@@ -103,8 +100,14 @@
             }
             half3 cRange = half3(r, g, b);
             float cAve = (cValue + cTex + cRange) / 3;
-            cAve = sumC;
-            o.Albedo = half3(cAve, cAve, cAve);
+//            cAve = sumC;
+            half3 cResult = cTex; // cRange;
+            if (sumValue == 1 || _Thickness >= 0.5) {
+                cResult = (cTex + cRange) / 2;
+            }
+//            o.Albedo = half3(cAve, cAve, cAve);
+            o.Albedo = cResult;
+            o.Alpha = 1;
         }
         ENDCG
     } 
