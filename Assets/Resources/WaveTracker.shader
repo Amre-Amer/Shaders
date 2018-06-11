@@ -8,6 +8,8 @@
         _RangeRed ("RangeRed", Float) = 2
         _RangeGreen ("RangeRed", Float) = 3
         _RangeBlue ("RangeRed", Float) = 5
+        _Sound ("Sound", Float) = 1
+        _Thickness ("Thickness", Float) = 0.15
     }
     SubShader {
         Tags { "Queue"="Transparent" "RenderType"="Transparent" }
@@ -26,6 +28,9 @@
         float _RangeRed;
         float _RangeGreen;
         float _RangeBlue;
+        float _Sound;
+        float _Thickness;
+        float _Amplitudes[100];
 
         void vert (inout appdata_full v) {
             half time = _Time.y;
@@ -44,7 +49,7 @@
         void surf (Input IN, inout SurfaceOutput o) {
 //            o.Albedo = tex2D (_MainTex, IN.uv_MainTex).rgb;
 
-//            half time = _Time.y;
+            half time = _Time.y;
 //            float rad = _Radius / 2 + _Radius / 10 * sin(time);
 //            float dN = 1 - saturate(d / rad);
             float sumC = 0;
@@ -53,19 +58,11 @@
                 float size = _Size;
                 float offset = 1;
                 float dist = distance(_Centers[n], IN.worldPos);
-                float s = 1;
-                if (n == 1) {
-                    s = 2;
-                }
-                if (n == 2) {
-                    s = 3;
-                }
-                if (n == 3) {
-                    s = 5;
-                }
-                float c = sin(dist * size * s);
+                float v = _Amplitudes[n] * 100;
+                time = 1; // live
+                float c = sin(dist * size * v - time * _Sound);
                 c = (c / 2) + 0.5;
-                if (c > 0.85) {
+                if (c > (1 - _Thickness)) {
                    c = 1;
                 } else {
                    c = 0;
@@ -95,7 +92,7 @@
                 b = 0.75 - cAve;
             }
             o.Albedo = half3(cAve + r, cAve + g, cAve + b);
-            o.Alpha = 1;
+            o.Alpha = 0.75;
         }
         ENDCG
     } 

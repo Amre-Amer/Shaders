@@ -6,6 +6,10 @@ public class WaveTracker : MonoBehaviour {
 	int numGos = 3;
 	[Range(0f, .1f)]
     public float speed = .05f;
+	[Range(-1, 100)]
+    public float sound = 1;
+	[Range(0f, 1f)]
+    public float thickness = .15f;
 	[Range(0, 100)]
 	public float size = 21;
 	[Space]
@@ -27,6 +31,8 @@ public class WaveTracker : MonoBehaviour {
 	GameObject[] lookGos;
 	int numFLoorClones = 100;
 	float spacingFloors = .1f;
+	int cntFrames;
+	AudioSource audioSource;
 	// Use this for initialization
 	void Start () {
 		CreateFloor();
@@ -37,12 +43,39 @@ public class WaveTracker : MonoBehaviour {
 	
 	// Update is called once per frame
 	void Update () {
+		UpdateAudioSource();
 		UpdateTargets();
 		UpdateAvoids();
 		UpdateTargetGos();
 		UpdateLookGos();
 		UpdateGos();
-		UpdateShader();		
+		UpdateShader();
+		cntFrames++;
+	}
+
+	void UpdateAudioSource() {
+		bool ynMicrophone = true;
+		if (audioSource == null)
+        {
+			audioSource = gameObject.AddComponent<AudioSource>();
+			if (ynMicrophone == true) {
+				StartMicrophone();          
+			} else {
+				LoadClip();
+			}
+        }
+	}
+
+	void StartMicrophone() {
+        audioSource.clip = Microphone.Start("Built-in Microphone", true, 10, 44100);
+		audioSource.loop = true;
+		while(!(Microphone.GetPosition(null) > 0)) {}
+        audioSource.Play();
+	}
+
+	void LoadClip() {
+        audioSource.clip = Resources.Load<AudioClip>("Sound");
+        audioSource.Play();
 	}
 
 	void CreateGos() {
@@ -58,14 +91,25 @@ public class WaveTracker : MonoBehaviour {
 		goFloor.transform.localScale = new Vector3(10, 10, 10);
 		goFloor.GetComponent<Renderer>().material = new Material(Shader.Find("Custom/WaveTracker"));
 	}
+	float GetAmplitude() {
+		float[] sample = new float[1];
+		audioSource.GetOutputData(sample, 0);
+		return sample[0];
+	}
 	void UpdateShader()
     {
 		Vector4[] gos4 = new Vector4[numGos];
+		float[] amplitudes = new float[numGos];
 		material = goFloor.GetComponent<Renderer>().material;
 		for (int n = 0; n < numGos; n++)
 		{
 			Vector3 p = gos[n].transform.position;
 			gos4[n] = new Vector4(p.x, p.y, p.z, 0);
+			if (n == 0) {
+				amplitudes[n] = GetAmplitude();
+			} else {
+				amplitudes[n] = Mathf.Sin(cntFrames * Mathf.Deg2Rad) * .5f + .5f;
+			}
 		}
 		material.SetVectorArray("_Centers", gos4);
 		material.SetInt("_NumCenters", numGos);
@@ -73,6 +117,9 @@ public class WaveTracker : MonoBehaviour {
 		material.SetFloat("_RangeRed", rangeRed);
 		material.SetFloat("_RangeGreen", rangeGreen);
 		material.SetFloat("_RangeBlue", rangeBlue);
+		material.SetFloat("_Sound", sound);
+		material.SetFloat("_Thickness", thickness);
+		material.SetFloatArray("_Amplitudes", amplitudes);
     }
 	void CreateFloorClones() {
 		for (int n = 1; n < numFLoorClones / 2; n++)
