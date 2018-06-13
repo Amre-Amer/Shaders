@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 public class SoundRoom : MonoBehaviour {
+    public bool ynReset;
     public bool ynSound = false;
     public Material material;
     [Range(0f, 10f)]
@@ -19,6 +20,14 @@ public class SoundRoom : MonoBehaviour {
     float amplitude;
     Camera cam;
     RenderTexture renderTexture;
+    float yawColor;
+    Color colorTarget = Color.yellow;
+    float yawColorX;
+    float yawColorY;
+    int resCam = 10;
+    Color bestColor;
+    float bestColorDist;
+    public GameObject display;
     //
 	void Start () {
         if (centerGo == null)
@@ -34,43 +43,75 @@ public class SoundRoom : MonoBehaviour {
         centerGo.transform.Rotate(0, 45, 0);
 	}
 	void Update () {
+        UpdateReset();
         UpdateCam();
         UpdateAmplitude();
         //UpdateCenter();
         UpdateMaterial();
         cntFrames++;
 	}
+    void UpdateReset() {
+        if (ynReset == true) {
+            centerGo.transform.position = Vector3.zero;
+            ynReset = false;
+        }
+    }
     void UpdateCam() {
         if (cam == null)
         {
             cam = centerGo.AddComponent<Camera>();
             renderTexture = new RenderTexture(10, 10, 16, RenderTextureFormat.ARGB32);
             cam.targetTexture = renderTexture;
+            if (display != null)
+            {
+                display.GetComponent<Renderer>().material.mainTexture = renderTexture;
+            }
         }
         Color aveColor = GetAveColor();
-        Vector3 aveColorV3 = new Vector3(aveColor.r, aveColor.g, aveColor.b);
-        Color colorTarget = Color.yellow;
-        Vector3 targetColorV3 = new Vector3(colorTarget.r, colorTarget.g, colorTarget.b);
-        float distColor = Vector3.Distance(aveColorV3, targetColorV3);
+        float distColor = GetColorDiff(aveColor);
+        Color colorGo = aveColor;
         if (distColor < .75f) {
-            aveColor = Color.red;
-            float yawNew = Random.Range(160f, 200f);
-            //yawNew = 180;
-            centerGo.transform.Rotate(0, yawNew, 0);
+            colorGo = Color.red;
+            SetYawColor();
+            centerGo.transform.Rotate(0, yawColor, 0);
         }
         centerGo.transform.position += centerGo.transform.forward * speed;
-        centerGo.GetComponent<Renderer>().material.color = aveColor;
+        centerGo.GetComponent<Renderer>().material.color = colorGo;
+    }
+    float GetColorDiff(Color color) {
+        Vector3 colorV3 = new Vector3(color.r, color.g, color.b);
+        Vector3 targetColorV3 = new Vector3(colorTarget.r, colorTarget.g, colorTarget.b);
+        return Vector3.Distance(colorV3, targetColorV3);
+    } 
+    void SetYawColor() {
+        float x = yawColorX / (float)resCam - .5f;
+        float y = yawColorY / (float)resCam - .5f;
+        Debug.Log("resCam:" + resCam + " yawColorXY:" + yawColorX + ", " + yawColorY + " = " + x + ", " + y + " bestColor:" + bestColor + " bestColorDist:" + bestColorDist + "\n");
+        yawColor = Random.Range(160f, 200f);    
     }
     Color GetAveColor() {
+        bestColor = Color.black;
+        yawColorX = -1;
+        yawColorY = -1;
+        float distColorMin = -1;
         Color sumColor = Color.black;
-        //        Texture2D texture = cam.GetComponent<Renderer>().material.mainTexture as Texture2D;
         RenderTexture.active = cam.targetTexture;
-        Texture2D texture = new Texture2D(10, 10);
-        texture.ReadPixels(new Rect(0, 0, 10, 10), 0, 0);
+        Texture2D texture = new Texture2D(resCam, resCam);
+        texture.ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
+        //
+        //
         for (int nx = 0; nx < texture.width; nx++) {
             for (int ny = 0; ny < texture.height; ny++)
             {
                 Color color = texture.GetPixel(nx, ny);
+                float distColor = GetColorDiff(color);
+                if (distColorMin == -1 || distColor < distColorMin) {
+                    distColorMin = distColor;
+                    yawColorX = nx;
+                    yawColorY = ny;
+                    bestColor = color;
+                    bestColorDist = distColor;
+                }
                 sumColor += color;
             }
         }
@@ -108,7 +149,11 @@ public class SoundRoom : MonoBehaviour {
         if (range > 0)
         {
             amplitude = (value - min) / range;
-            float s = 1f + amplitude * 10;
+            float s = 5;
+            if (ynSound == true)
+            {
+                s = 1f + amplitude * 10;
+            }
             centerGo.transform.localScale = new Vector3(s, s, s);
         }
     }

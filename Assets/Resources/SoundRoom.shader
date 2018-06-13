@@ -38,7 +38,6 @@
             //
             float dist = distance(_Center, IN.worldPos);
             if (_YnLines == 1) {
-                //float dist = distance(_Center, IN.worldPos);
                 float amp = _Amplitude;
                 float ang = dist * amp / _Size; 
                 float v = sin(ang);
@@ -50,36 +49,27 @@
                 }
                 cValue  = half3(v, v, v);
             } else {
+                float thick = 1;
                 float dx =  IN.worldPos.x - _Center.x;
-                if (dx >=0 && dx < _Size) {
+                if (dx >=0 && dx < thick) {
                     cValue  = half3(1, 0, 0);
                 }
                 float dy = IN.worldPos.y - _Center.y;
-                if (dy >=0 && dy < _Size) {
+                if (dy >=0 && dy < thick) {
                     cValue  = half3(0, 1, 0);
                 }
                 float dz = IN.worldPos.z - _Center.z;
-                if (dz >=0 && dz < _Size) {
+                if (dz >=0 && dz < thick) {
                     cValue  = half3(0, 0, 1);
                 }
                 float yawScan = _Yaw;
                 if (yawScan < 0) yawScan += 360;
                 float yawPix = atan2(dz, dx) * 57.29;
                 if (yawPix < 0) yawPix += 360;
-//                float azimDiff = azimScan - azimPix;
-                //
-//                float altScan = 0; //_CntFrames % 360;
-//                float altPix = atan2(dy, dz) * 57.29;
-//                if (altPix < 0) altPix += 360;
-                float yawDiff = yawScan - yawPix;
-                if (yawDiff >= 0 && yawDiff < 5) {
-//                    cValue  = half3(1, 1, 0);
-//                    cTex  = half3(1, 1, 0);
-                }
-                if (dist < 10) {
-                    cValue  = half3(1, 1, 0);
-                    cTex  = half3(1, 1, 0);
-                }
+            }
+            if (dist < 10) {
+                cValue  = half3(1, 1, 0);
+                cTex  = half3(1, 1, 0);
             }
             float cAve = (cValue + cTex) / 2;
             half3 cResult = (cTex + cValue) / 2;
