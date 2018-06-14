@@ -38,9 +38,9 @@
                     distMin = dist;
                 }
             }
-            if (distMin < _Range) {
+            if (distMin < _Range * .6) {
                 float v = 1 - distMin / _Range; 
-                o.Albedo  = half3(v, v, 0);
+                o.Albedo  = half3(1, 1, 1) * v;
             } else {
                 o.Albedo = cTex;
             }

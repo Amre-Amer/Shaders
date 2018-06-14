@@ -4277,6 +4277,92 @@ MeshFilter:
   m_PrefabInternal: {fileID: 0}
   m_GameObject: {fileID: 702665382}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &706643208
+GameObject:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  serializedVersion: 5
+  m_Component:
+  - component: {fileID: 706643212}
+  - component: {fileID: 706643211}
+  - component: {fileID: 706643210}
+  - component: {fileID: 706643209}
+  m_Layer: 0
+  m_Name: Quad
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!23 &706643209
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 706643208}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_Materials:
+  - {fileID: 10303, guid: 0000000000000000f000000000000000, type: 0}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_PreserveUVs: 1
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 0
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+--- !u!64 &706643210
+MeshCollider:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 706643208}
+  m_Material: {fileID: 0}
+  m_IsTrigger: 0
+  m_Enabled: 1
+  serializedVersion: 3
+  m_Convex: 0
+  m_CookingOptions: 14
+  m_SkinWidth: 0.01
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!33 &706643211
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 706643208}
+  m_Mesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!4 &706643212
+Transform:
+  m_ObjectHideFlags: 0
+  m_PrefabParentObject: {fileID: 0}
+  m_PrefabInternal: {fileID: 0}
+  m_GameObject: {fileID: 706643208}
+  m_LocalRotation: {x: 0.07987045, y: 0.43726057, z: -0.039024465, w: 0.8949308}
+  m_LocalPosition: {x: 102.7, y: 49.6, z: 47.1}
+  m_LocalScale: {x: 31.744247, y: 31.744204, z: 31.744204}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 11
+  m_LocalEulerAnglesHint: {x: 10.2, y: 52.08, z: 0}
 --- !u!1 &727759862
 GameObject:
   m_ObjectHideFlags: 0
@@ -9588,9 +9674,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8c9b2d8bdd51a4fb888e0695ff247151, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  textureTrack: {fileID: 2800000, guid: 46d730a3212b148aabc5d65a884a4671, type: 3}
+  ynTrackSphere: 0
+  ynUseNear: 0
+  ynStep: 0
+  textureTrack: {fileID: 2800000, guid: e8e4e29ee7b9844ccb28c2d9ed57bae3, type: 3}
   sphere: {fileID: 1979292964}
-  aveColor: {r: 0, g: 0, b: 0, a: 0}
+  display: {fileID: 706643208}
+  aveColor0: {r: 0, g: 0, b: 0, a: 0}
+  nearColor0: {r: 0, g: 0, b: 0, a: 0}
+  diffAveColor0: 0
+  diffNearColor0: 0
+  diffColor0: 0
+  colorThreshold0: 0
+  ynSensor0: 0
 --- !u!4 &1773955861
 Transform:
   m_ObjectHideFlags: 0
