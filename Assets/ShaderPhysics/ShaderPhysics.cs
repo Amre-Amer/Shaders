@@ -4,39 +4,38 @@ using UnityEngine;
 using UnityEngine.UI;
 
 public class ShaderPhysics : MonoBehaviour {
-    public bool ynTrackSphere;
-    public bool ynUseNear;
+    public bool ynReset;
+    [Range(0f, 1f)]
+    public float colorThreshold = .1f; //.85f;  // .95
     public bool ynTrails = true;
-    public bool ynUseDelta = true;
     public bool ynStep;
-    float delay = 1;
-    float startTime;
     public Texture2D textureTrack;
-    public GameObject cageGo;
     public GameObject display;
     public Color aveColor0;
-    public Color nearColor0;
-    public float diffAveColor0;
-    public float diffNearColor0;
     public float diffColor0;
     public float colorThreshold0;
     public bool ynSensor0;
-    int numObjects = 10;
-    int numSphereObjects = 3;
+    public int cntErrors;
+    public bool ynSound = true;
+    public Color colorTarget = Color.blue;
+    float delay = 1;
+    float startTime;
+    Color nearColor0;
+    //float diffAveColor0;
+    float diffNearColor0;
+    int numObjects = 1;
     float speed = .2f;
-    float colorThreshold = .1f; //.85f;  // .95
     float range = 5;
-    int resCam = 10; //10;
-    float angRange = 30;
+    int resCam = 20; //10;
+    float angRange = 0; //30;
     float grayScaleThreshold = .5f;
     float meshHeight = 5;
     float objectScale = 5f;
     int numBars; // = resMeshX
-    float barScale = 100;
-    float distFar = 200;
+    float barScale = 50;
+    float turnAroundSpeedFactor = 1;
     GameObject meshGo;
     Camera[] cams;
-    Color colorTarget = Color.white;
     int resMeshX; // = image width
     int resMeshY; // = image height
     GameObject[] objectGos;
@@ -44,8 +43,7 @@ public class ShaderPhysics : MonoBehaviour {
     RenderTexture renderTexture;
     string meshShaderName = "Custom/ShaderPhysicsTransparent";
     string meshTextureName = "grid_opaque";
-    bool[] ynSensorsLast;
-    int nTracked;
+    int nTracked = 0;
     GameObject[] bars;
     GameObject barThreshold;
     GameObject barTop;
@@ -54,13 +52,21 @@ public class ShaderPhysics : MonoBehaviour {
     GameObject trailsGo;
     GameObject parentObjectsGo;
     GameObject parentBarsGo;
-    float deltaLast;
     Text textTimer;
-
+    int cntFrames;
+    Texture2D textureDisplay;
+    Vector3[] targets;
+    Vector3[] looks;
+    float smooth = .95f;
+    Vector3 posBar;
+    bool[] ynSensors;
+    bool[] ynSensorsLast;
+    float[] diffColors;
+    Color[] aveColors;
     // Use this for initialization
 	void Start () {
-        UpdateTracked();
         CreateMesh();
+        posBar = new Vector3(0, meshHeight, resMeshY);
         CreateObjects();
 	}
 	
@@ -72,23 +78,40 @@ public class ShaderPhysics : MonoBehaviour {
             return;            
         }
         startTime = Time.realtimeSinceStartup;
-        UpdateTracked();
         UpdateMaterials();
         UpdateObjects();
         UpdateCam();
         UpdateBars();
-        //UpdateFar();
         UpdateTrails();
         UpdateTimer();
+        UpdateReset();
+        //UpdateFar();
+        UpdateYnSensorLast();
+        cntFrames++;
 	}
 
+    void UpdateYnSensorLast() {
+        for (int n = 0; n < numObjects; n++) {
+            ynSensorsLast[n] = ynSensors[n];
+        }
+    }
+
+    void UpdateReset() {
+        if (ynReset == true) {
+            for (int n = 0; n < numObjects; n++) {
+                objectGos[n].transform.position = GetObjectPos();
+            }
+            cntErrors = 0;
+            ynReset = false;
+        }
+    }
     void UpdateTimer() {
         if (textTimer == null) {
-            textTimer = CreateText(Vector3.zero, "test", Color.red);
-            textTimer.transform.position = new Vector3(resMeshX / 5, resMeshX / 5, resMeshY);
+            textTimer = CreateText(Vector3.zero, "test", Color.blue);
+            textTimer.transform.position = posBar + new Vector3(resMeshX / 5, resMeshX / 5, -1);
         }
         float prog = 100 * GetProgress();
-        textTimer.text = prog.ToString("F2") + " %";
+        textTimer.text = prog.ToString("F0") + " %";
     }
     float GetProgress()
     {
@@ -108,7 +131,6 @@ public class ShaderPhysics : MonoBehaviour {
         return cnt / (float)(textureTrails.width * textureTrails.height);
     }
     void UpdateTrails() {
-        if (ynTrails == false) return;
         if (textureTrails == null) {
             trailsGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
             trailsGo.name = "trailsGo";
@@ -118,17 +140,32 @@ public class ShaderPhysics : MonoBehaviour {
             trailsGo.transform.localScale = new Vector3(resMeshX, resMeshY, 0);
             textureTrails = new Texture2D(resMeshX, resMeshY);
             textureTrails.filterMode = FilterMode.Point;
-            //MakeTextureClear(textureTrails);
             MakeTextureGrid(textureTrails);
-            //textureTrails = Resources.Load<Texture2D>("grid_opaque");
             Material mat = trailsGo.GetComponent<Renderer>().material;
             mat.mainTexture = textureTrails;
-            //MakeMaterialTransparent(mat);
-            //mat.SetTextureScale("_MainTex", new Vector2(5, 5));
+        }
+        Vector3 pos = trailsGo.transform.position;
+        float y = .1f;
+        if (ynTrails == false)
+        {
+            if (pos.y != -y)
+            {
+                pos.y = -y;
+                trailsGo.transform.position = pos;
+            }
+            return;
+        }
+        else
+        {
+            if (pos.y != y)
+            {
+                pos.y = y;
+                trailsGo.transform.position = pos;
+            }
         }
         if (textureTrails != null)
         {
-            for (int n = numSphereObjects; n < numObjects; n++)
+            for (int n = 0; n < numObjects; n++)
             {
                 UpdateTrail(n);
             }
@@ -190,16 +227,6 @@ public class ShaderPhysics : MonoBehaviour {
             for (int ny = 0; ny < tex.height; ny++)
             {
                 Color color = new Color(0, 0, 0);
-                //if (nx % 10 == 0)
-                //{
-                //    color += new Color(0, 1, 0);
-                //    color /= 2;
-                //}
-                //if (ny % 10 == 0)
-                //{
-                //    color += new Color(0, 0, 1);
-                //    color /= 2;
-                //}
                 tex.SetPixel(nx, ny, color);
             }
         }
@@ -214,20 +241,18 @@ public class ShaderPhysics : MonoBehaviour {
         tex.SetPixels(colors);
         tex.Apply();
     }
-    void UpdateTracked() {
-        nTracked = numSphereObjects;
-        if (ynTrackSphere == true) {
-            nTracked--;
-        }
-    }
 
     void UpdateFar() {
         for (int n = 0; n < numObjects; n++) {
             int nx = (int)objectGos[n].transform.position.x;
             int ny = (int)objectGos[n].transform.position.z;
             if (textureTrack.GetPixel(nx, ny) != Color.black) {
+                cntErrors++;
                 objectGos[n].transform.position = GetObjectPos();
-                PlaySound();
+                if (ynSound == true)
+                {
+                    PlaySound();
+                }
             }
         }
     }
@@ -251,7 +276,7 @@ public class ShaderPhysics : MonoBehaviour {
             {
                 bars[n] = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 bars[n].transform.parent = parentBarsGo.transform;
-                bars[n].transform.position = new Vector3(n, 0, -meshHeight);
+                bars[n].transform.position = posBar + new Vector3(n, 0, 0);
                 bars[n].transform.localScale = new Vector3(.75f, 0, .75f);
             }
         }
@@ -260,16 +285,21 @@ public class ShaderPhysics : MonoBehaviour {
             Color colorPrev = bars[n - 1].GetComponent<Renderer>().material.color;
             UpdateBar(n, yPrev, colorPrev);
         }
+        // new bar value for nTracked
         float yNew = diffColor0 * barScale;
         Color color = Color.white;
-        if (ynSensor0 == true)
+        if (ynSensors[nTracked] == true)
         {
             color = Color.red;
+        }
+        if (ynSensorsLast[nTracked] != ynSensors[nTracked]) {
+            color = Color.cyan;
         }
         UpdateBar(0, yNew, color);
         UpdateBarThreshold();
         UpdateBarTop();
     }
+
     void UpdateBarTop()
     {
         if (barTop == null)
@@ -279,7 +309,7 @@ public class ShaderPhysics : MonoBehaviour {
             barTop.transform.parent = parentBarsGo.transform;
             barTop.GetComponent<Renderer>().material.color = Color.blue;
             float y = 1 * barScale;
-            barTop.transform.position = new Vector3(numBars / 2, -meshHeight + y, -meshHeight);
+            barTop.transform.position = posBar + new Vector3(numBars / 2, y, 0);
             barTop.transform.localScale = new Vector3(numBars, .25f, 1);
         }
     }
@@ -289,16 +319,16 @@ public class ShaderPhysics : MonoBehaviour {
             barThreshold.name = "barThreshold";
             barThreshold.transform.parent = parentBarsGo.transform;
             barThreshold.GetComponent<Renderer>().material.color = Color.green;
-            float y = colorThreshold * barScale;
-            barThreshold.transform.position = new Vector3(numBars / 2, -meshHeight + y, -meshHeight);
-            barThreshold.transform.localScale = new Vector3(numBars, .25f, 1);
         }
+        float y = colorThreshold * barScale;
+        barThreshold.transform.position = posBar + new Vector3(numBars / 2, y, 0);
+        barThreshold.transform.localScale = new Vector3(numBars, .25f, 1);
     }
     void UpdateBar(int n, float y, Color color) {
         Vector3 sca = bars[n].transform.localScale;
         bars[n].transform.localScale = new Vector3(sca.x, y, sca.z);
         Vector3 pos = bars[n].transform.position;
-        bars[n].transform.position = new Vector3(pos.x, -meshHeight + y / 2, pos.z);
+        bars[n].transform.position = new Vector3(pos.x, meshHeight + y / 2, pos.z);
         bars[n].GetComponent<Renderer>().material.color = color;
     }
 
@@ -319,18 +349,23 @@ public class ShaderPhysics : MonoBehaviour {
         Shader.SetGlobalVectorArray("_Centers", pos4s);
         Shader.SetGlobalInt("_NumCenters", numObjects);
         Shader.SetGlobalFloat("_Range", range);
+        Vector4 col4 = new Vector4(colorTarget.r, colorTarget.g, colorTarget.b, colorTarget.a);
+        Shader.SetGlobalVector("_ColorTarget", col4);
     }
     public void CreateObjects() {
+        targets = new Vector3[numObjects];
+        looks = new Vector3[numObjects];
         objectGos = new GameObject[numObjects];
+        ynSensors = new bool[numObjects];
+        ynSensorsLast = new bool[numObjects];
+        diffColors = new float[numObjects];
+        aveColors = new Color[numObjects];
         parentObjectsGo = new GameObject("objects:" + numObjects);
         for (int n = 0; n < numObjects; n++)
         {
             objectGos[n] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             objectGos[n].transform.parent = parentObjectsGo.transform;
             objectGos[n].transform.position = GetObjectPos();
-            if (n < numSphereObjects) {
-                objectGos[n].transform.position = cageGo.transform.position;
-            }
             if (n == nTracked)
             {
                 objectGos[n].name = "tracked";
@@ -339,11 +374,8 @@ public class ShaderPhysics : MonoBehaviour {
             objectGos[n].transform.localScale = new Vector3(s, s, s);
             float yaw = Random.Range(0, 360f);
             objectGos[n].transform.Rotate(0, yaw, 0);
-            if (n < numSphereObjects)
-            {
-                float pitch = Random.Range(0, 360f);
-                objectGos[n].transform.Rotate(pitch, 0, 0);
-            }
+                //float pitch = Random.Range(0, 360f);
+                //objectGos[n].transform.Rotate(pitch, 0, 0);
         }
     }
     Vector3 GetObjectPos() {
@@ -364,9 +396,6 @@ public class ShaderPhysics : MonoBehaviour {
 
     void UpdateObjects()
     {
-        if (ynSensorsLast == null) {
-            ynSensorsLast = new bool[numObjects];
-        }
         if (cams == null) {
             cams = new Camera[numObjects];
         }
@@ -378,78 +407,84 @@ public class ShaderPhysics : MonoBehaviour {
                 renderTexture = new RenderTexture(resCam, resCam, 16, RenderTextureFormat.ARGB32);
                 cams[n].targetTexture = renderTexture;
                 cams[n].targetTexture.filterMode = FilterMode.Point;
+                cams[n].nearClipPlane = .1f;
                 //
                 if (n == nTracked)
                 {
                     if (display != null)
                     {
-                        display.GetComponent<Renderer>().material.mainTexture = cams[n].targetTexture;
+                        textureDisplay = new Texture2D(resCam, resCam);
+                        display.GetComponent<Renderer>().material.mainTexture = textureDisplay;
                     }
                 }
             }
-            bool ynSensor = GetSensorValue(n);
-            NavigateObject(n, ynSensor);
+            UpdateSensorValue(n);
+            NavigateObject(n);
         }
     }
 
-    void NavigateObject(int n, bool ynSensor) {
+    void NavigateObject(int n) {
+        bool ynSensor = ynSensors[n];
         float s = 1;
-        //if (ynSensor == true && ynSensorsLast[n] == false)
+        //ynSensor = false;
         if (ynSensor == true)
         {
             float yaw = Random.Range(180 - angRange, 180 + angRange);
-            objectGos[n].transform.Rotate(0, yaw, 0);
-            if (n < numSphereObjects)
-            {
-                float pitch = Random.Range(-angRange, angRange);
-                objectGos[n].transform.Rotate(pitch, 0, 0);
-            }
-            s = 3;
+            //objectGos[n].transform.Rotate(0, yaw, 0);
+                //float pitch = Random.Range(-angRange, angRange);
+                 //objectGos[n].transform.Rotate(pitch, 0, 0);
+            s = turnAroundSpeedFactor;
+            targets[n] = objectGos[n].transform.position + objectGos[n].transform.forward * -10;
+        } else {
+            targets[n] = objectGos[n].transform.position + objectGos[n].transform.forward * 10;
         }
-        ynSensorsLast[n] = ynSensor;
+        looks[n] = smooth * looks[n] + (1 - smooth) * targets[n];
+        objectGos[n].transform.LookAt(looks[n]);
         objectGos[n].transform.position += objectGos[n].transform.forward * speed * s;
     }
 
-    bool GetSensorValue(int n) {
+    void UpdateSensorValue(int n) {
         bool ynSensor = false;
-        Color aveColor = GetAveColorCam(n);
-        Color nearColor = GetNearestColor(n);
-        float diffAveColor = GetColorDiff(aveColor);
-        float diffNearColor = GetColorDiff(nearColor);
-        Color colorGo = aveColor;
-        float diffColor = diffAveColor;
-        if (ynUseNear == true) {
-            diffColor = diffNearColor;
-        }
-        if (ynUseDelta == true) {
-            diffColor = Mathf.Abs(aveColor.grayscale - deltaLast); 
-            deltaLast = aveColor.grayscale;
-        }
-        //        if (diffColor < colorThreshold)
-        //Debug.Log("aveColor:" + aveColor.grayscale + " diffColor:" + diffColor + "\n");
-        if (diffColor > colorThreshold)
+        aveColors[n] = GetAveColorCam(n);
+        Color colorGo = aveColors[n];
+        diffColors[n] = GetColorDiffTarget(aveColors[n]);
+        if (diffColors[n] < colorThreshold)
         {
             colorGo = Color.red;
             ynSensor = true;
         }
         if (n == nTracked)
         {
-            aveColor0 = aveColor;
-            diffAveColor0 = diffAveColor;
-            diffNearColor0 = diffNearColor;
-            nearColor0 = nearColor;
-            diffColor0 = diffColor;
+            aveColor0 = aveColors[n];
+            diffColor0 = diffColors[n];
             colorThreshold0 = colorThreshold;
             ynSensor0 = ynSensor;
-            colorGo = Color.white;
+            UpdateDisplay();
         }
         objectGos[n].GetComponent<Renderer>().material.color = colorGo;
-        return ynSensor;
+        ynSensors[n] = ynSensor;
     }
-    float GetColorDiff(Color color) {
+    void UpdateDisplay() {
+        RenderTexture.active = cams[nTracked].targetTexture;
+        Texture2D tex = new Texture2D(resCam, resCam);
+        tex.ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
+        //
+        for (int nx = 0; nx < textureDisplay.width; nx++) {
+            for (int ny = 0; ny < textureDisplay.height; ny++) {
+                Color col = tex.GetPixel(nx, ny);
+                float diff = GetColorDiffTarget(col);
+                col = colorTarget * (1 - diff);
+                textureDisplay.SetPixel(nx, ny, col);
+            }        
+        }
+        textureDisplay.Apply();
+        //
+        Destroy(tex);  // avoids memory leak 
+    }
+    float GetColorDiffTarget(Color color) {
         Vector3 colorV3 = new Vector3(color.r, color.g, color.b);
         Vector3 targetColorV3 = new Vector3(colorTarget.r, colorTarget.g, colorTarget.b);
-        return Vector3.Distance(colorV3, targetColorV3);
+        return Vector3.Distance(Vector3.Normalize(colorV3), Vector3.Normalize(targetColorV3));
     } 
 
     Color GetAveColorTexture(Texture2D tex) {
@@ -488,7 +523,7 @@ public class ShaderPhysics : MonoBehaviour {
             for (int ny = 0; ny < tex.height; ny++)
             {
                 Color color = tex.GetPixel(nx, ny);
-                float distColor = GetColorDiff(color);
+                float distColor = GetColorDiffTarget(color);
                 if (distColorMin == -1 || distColor < distColorMin)
                 {
                     distColorMin = distColor;

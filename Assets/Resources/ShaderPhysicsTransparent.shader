@@ -4,18 +4,19 @@
         _MainTex ("Base (RGB)", 2D) = "white" {}
     }
     SubShader {
-        Tags {"Queue"="Transparent" "RenderType"="Transparent"}
+        Tags {"RenderType"="Opaque"}
         LOD 200
         Cull Off
         
         CGPROGRAM
-        #pragma surface surf Lambert alpha vertex:vert
+        #pragma surface surf Lambert vertex:vert
 
         fixed4 _Color;
         sampler2D _MainTex;
         float3 _Centers[100];
         int _NumCenters;
         float _Range;
+        fixed4 _ColorTarget;
 
         void vert (inout appdata_full v) {
             half time = _Time.y;
@@ -38,9 +39,9 @@
                     distMin = dist;
                 }
             }
-            if (distMin < _Range * .6) {
+            if (distMin < _Range) {
                 float v = 1 - distMin / _Range; 
-                o.Albedo  = half3(1, 1, 1) * v;
+                o.Albedo  = _ColorTarget.rgb * v;
                 o.Alpha = 1;
                 o.Emission = o.Albedo;
             } else {
