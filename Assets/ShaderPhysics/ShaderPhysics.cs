@@ -5,6 +5,7 @@ using UnityEngine.UI;
 
 public class ShaderPhysics : MonoBehaviour {
     public string layerHidden = "HiddenFromCam";
+    int numObjects = 3;
     public bool ynReset;
     [Range(0f, 1f)]
     public float colorThreshold = .1f; //.85f;  // .95
@@ -26,14 +27,13 @@ public class ShaderPhysics : MonoBehaviour {
     public Color colorTarget = Color.blue;
     float delay = 1;
     float startTime;
-    int numObjects = 1;
-    float range = 5;
+    float rangeShader = 5;
     int resCam = 10; //10;
     float grayScaleThreshold = .5f;
     float meshHeight = 5;
     float objectScale = 5f;
     int numBars; // = resMeshX
-    float barScale = 50;
+    float barScale = 30;
     GameObject meshGo;
     Camera[] cams;
     int resMeshX; // = image width
@@ -78,7 +78,8 @@ public class ShaderPhysics : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
         float delay0 = delay;
-        if (ynSensor0 == true) delay0 *= 4;
+        float delayExtraSensor = 4;
+        if (ynSensor0 == true) delay0 *= delayExtraSensor;
         if (ynStep == true && Time.realtimeSinceStartup - startTime < delay0) {
             return;            
         }
@@ -121,19 +122,21 @@ public class ShaderPhysics : MonoBehaviour {
     float GetProgress()
     {
         int cnt = 0;
+        int cntAll = 0;
         for (int nx = 0; nx < textureTrails.width; nx++) {
             for (int ny = 0; ny < textureTrails.height; ny++)
             {
-                Color col = textureTrails.GetPixel(nx, ny);
-                if (col != Color.black) {
-                    if (textureTrack.GetPixel(nx, ny) == Color.black)
-                    {
+                if (textureTrack.GetPixel(nx, ny) == Color.black)
+                {
+                    cntAll++;
+                    Color col = textureTrails.GetPixel(nx, ny);
+                    if (col != Color.black) {
                         cnt++;
                     }
                 }
             }
         }
-        return cnt / (float)(textureTrails.width * textureTrails.height);
+        return cnt / (float)cntAll;
     }
     void UpdateTrails() {
         if (textureTrails == null) {
@@ -158,7 +161,6 @@ public class ShaderPhysics : MonoBehaviour {
                 pos.y = -y;
                 trailsGo.transform.position = pos;
             }
-            return;
         }
         else
         {
@@ -168,12 +170,9 @@ public class ShaderPhysics : MonoBehaviour {
                 trailsGo.transform.position = pos;
             }
         }
-        if (textureTrails != null)
+        for (int n = 0; n < numObjects; n++)
         {
-            for (int n = 0; n < numObjects; n++)
-            {
-                UpdateTrail(n);
-            }
+            UpdateTrail(n);
         }
     }
 
@@ -353,7 +352,7 @@ public class ShaderPhysics : MonoBehaviour {
         }
         Shader.SetGlobalVectorArray("_Centers", pos4s);
         Shader.SetGlobalInt("_NumCenters", numObjects);
-        Shader.SetGlobalFloat("_Range", range);
+        Shader.SetGlobalFloat("_Range", rangeShader);
         Vector4 col4 = new Vector4(colorTarget.r, colorTarget.g, colorTarget.b, colorTarget.a);
         Shader.SetGlobalVector("_ColorTarget", col4);
     }
@@ -391,7 +390,7 @@ public class ShaderPhysics : MonoBehaviour {
     }
     Vector3 GetObjectPos() {
         Vector3 pos = Vector3.zero;
-        for (int n = 0; n < 10; n++)
+        for (int n = 0; n < 10; n++) // 10 tries
         {
             int nx = Random.Range(0, resMeshX);
             int ny = Random.Range(0, resMeshY);
@@ -419,11 +418,12 @@ public class ShaderPhysics : MonoBehaviour {
                 cams[n].targetTexture = renderTexture;
                 cams[n].targetTexture.filterMode = FilterMode.Point;
                 cams[n].nearClipPlane = .1f;
+                cams[n].cullingMask &= ~(1 << LayerMask.NameToLayer(layerHidden));
                 //
                 displayTextures[n] = new Texture2D(resCam, resCam);
                 displayGos[n] = GameObject.CreatePrimitive(PrimitiveType.Quad);
                 displayGos[n].transform.localScale = new Vector3(10, 10, 10);
-                displayGos[n].transform.eulerAngles = new Vector3(90, 0, 0);
+                displayGos[n].transform.eulerAngles = new Vector3(0, 0, 0);
                 displayGos[n].GetComponent<Renderer>().material.mainTexture = displayTextures[n];
             }
             UpdateSensorValue(n);
@@ -463,15 +463,16 @@ public class ShaderPhysics : MonoBehaviour {
                 DestroyImmediate(parentTargetsGo);
             }
         }
+        float targetClearance = 10;
         if (ynSensors[n] == true)
         {
             float yaw = yawPointers[n];
             Vector3 vector = objectGos[n].transform.position - displayTargets[n];
-            targets[n] = objectGos[n].transform.position + Vector3.Normalize(vector) * 10;
+            targets[n] = objectGos[n].transform.position + Vector3.Normalize(vector) * targetClearance;
         }
         else
         {
-            targets[n] = objectGos[n].transform.position + objectGos[n].transform.forward * 10;
+            targets[n] = objectGos[n].transform.position + objectGos[n].transform.forward * targetClearance;
         }
     }
 
@@ -513,7 +514,8 @@ public class ShaderPhysics : MonoBehaviour {
         }
     }
     void UpdateDisplay(int n) {
-        displayGos[n].transform.position = objectGos[n].transform.position + Vector3.up * 30;
+        float heightDisplayAboveObject = 30;
+        displayGos[n].transform.position = objectGos[n].transform.position + Vector3.up * heightDisplayAboveObject;
         RenderTexture.active = cams[n].targetTexture;
         displayTextures[n].ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
         //
@@ -590,30 +592,30 @@ public class ShaderPhysics : MonoBehaviour {
         return aveColor;
     }
 
-    Color GetNearestColor(int n)
-    {
-        Color nearColor = Color.black;
-        float distColorMin = -1;
-        RenderTexture.active = cams[n].targetTexture;
-        Texture2D tex = new Texture2D(resCam, resCam);
-        tex.ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
-        //
-        for (int nx = 0; nx < tex.width; nx++)
-        {
-            for (int ny = 0; ny < tex.height; ny++)
-            {
-                Color color = tex.GetPixel(nx, ny);
-                float distColor = GetColorDiffTarget(color);
-                if (distColorMin == -1 || distColor < distColorMin)
-                {
-                    distColorMin = distColor;
-                    nearColor = color;
-                }
-            }
-        }
-        Destroy(tex);  // avoids memory leak 
-        return nearColor;
-    }
+    //Color GetNearestColor(int n)
+    //{
+    //    Color nearColor = Color.black;
+    //    float distColorMin = -1;
+    //    RenderTexture.active = cams[n].targetTexture;
+    //    Texture2D tex = new Texture2D(resCam, resCam);
+    //    tex.ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
+    //    //
+    //    for (int nx = 0; nx < tex.width; nx++)
+    //    {
+    //        for (int ny = 0; ny < tex.height; ny++)
+    //        {
+    //            Color color = tex.GetPixel(nx, ny);
+    //            float distColor = GetColorDiffTarget(color);
+    //            if (distColorMin == -1 || distColor < distColorMin)
+    //            {
+    //                distColorMin = distColor;
+    //                nearColor = color;
+    //            }
+    //        }
+    //    }
+    //    Destroy(tex);  // avoids memory leak 
+    //    return nearColor;
+    //}
 
     public void CreateMesh()
     {
