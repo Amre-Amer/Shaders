@@ -9673,6 +9673,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   layerHidden: HiddenFromCam
+  numObjects: 3
   ynReset: 0
   colorThreshold: 0.688
   speed: 0.2
@@ -9681,7 +9682,6 @@ MonoBehaviour:
   ynTrails: 0
   ynStep: 0
   textureTrack: {fileID: 2800000, guid: 167f3ecb12965490d81bf7ad2fba7a0e, type: 3}
-  pointerGo: {fileID: 762837048}
   aveColor0: {r: 0, g: 0, b: 0, a: 0}
   diffColor0: 0
   colorThreshold0: 0
@@ -9689,6 +9689,11 @@ MonoBehaviour:
   cntErrors: 0
   ynSound: 1
   colorTarget: {r: 0, g: 0, b: 1, a: 1}
+  resCam: 10
+  objectScale: 5
+  objects: []
+  parentObjectsGo: {fileID: 0}
+  parentTargetsGo: {fileID: 0}
 --- !u!4 &1773955861
 Transform:
   m_ObjectHideFlags: 0
