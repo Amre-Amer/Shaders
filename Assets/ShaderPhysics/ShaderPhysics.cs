@@ -4,13 +4,19 @@ using UnityEngine;
 using UnityEngine.UI;
 
 public class ShaderPhysics : MonoBehaviour {
+    public string layerHidden = "HiddenFromCam";
     public bool ynReset;
     [Range(0f, 1f)]
     public float colorThreshold = .1f; //.85f;  // .95
+    [Range(0f, 1f)]
+    public float speed = .2f;
+    [Range(0f, 1f)]
+    public float smooth = .95f;
+    public bool ynTargets = false;
     public bool ynTrails = true;
     public bool ynStep;
     public Texture2D textureTrack;
-    public GameObject display;
+    public GameObject pointerGo;
     public Color aveColor0;
     public float diffColor0;
     public float colorThreshold0;
@@ -20,26 +26,19 @@ public class ShaderPhysics : MonoBehaviour {
     public Color colorTarget = Color.blue;
     float delay = 1;
     float startTime;
-    Color nearColor0;
-    //float diffAveColor0;
-    float diffNearColor0;
     int numObjects = 1;
-    float speed = .2f;
     float range = 5;
-    int resCam = 20; //10;
-    float angRange = 0; //30;
+    int resCam = 10; //10;
     float grayScaleThreshold = .5f;
     float meshHeight = 5;
     float objectScale = 5f;
     int numBars; // = resMeshX
     float barScale = 50;
-    float turnAroundSpeedFactor = 1;
     GameObject meshGo;
     Camera[] cams;
     int resMeshX; // = image width
     int resMeshY; // = image height
     GameObject[] objectGos;
-    //Texture2D texture;
     RenderTexture renderTexture;
     string meshShaderName = "Custom/ShaderPhysicsTransparent";
     string meshTextureName = "grid_opaque";
@@ -54,15 +53,21 @@ public class ShaderPhysics : MonoBehaviour {
     GameObject parentBarsGo;
     Text textTimer;
     int cntFrames;
-    Texture2D textureDisplay;
     Vector3[] targets;
     Vector3[] looks;
-    float smooth = .95f;
     Vector3 posBar;
     bool[] ynSensors;
     bool[] ynSensorsLast;
     float[] diffColors;
     Color[] aveColors;
+    GameObject[] targetGos;
+    GameObject[] lookGos;
+    GameObject parentTargetsGo;
+    Texture2D[] displayTextures;
+    float[] yawPointers;
+    GameObject[] displayGos;
+    Vector3[] displayTargets;
+
     // Use this for initialization
 	void Start () {
         CreateMesh();
@@ -269,7 +274,7 @@ public class ShaderPhysics : MonoBehaviour {
     }
     void UpdateBars() {
         if (bars == null) {
-            numBars = resMeshX;
+            numBars = resMeshX * 2;
             parentBarsGo = new GameObject("bars");
             bars = new GameObject[numBars];
             for (int n = 0; n < numBars; n++)
@@ -354,12 +359,18 @@ public class ShaderPhysics : MonoBehaviour {
     }
     public void CreateObjects() {
         targets = new Vector3[numObjects];
+        targetGos = new GameObject[numObjects];
         looks = new Vector3[numObjects];
+        lookGos = new GameObject[numObjects];
         objectGos = new GameObject[numObjects];
         ynSensors = new bool[numObjects];
         ynSensorsLast = new bool[numObjects];
         diffColors = new float[numObjects];
         aveColors = new Color[numObjects];
+        displayTextures = new Texture2D[numObjects];
+        yawPointers = new float[numObjects];
+        displayTargets = new Vector3[numObjects];
+        displayGos = new GameObject[numObjects];
         parentObjectsGo = new GameObject("objects:" + numObjects);
         for (int n = 0; n < numObjects; n++)
         {
@@ -409,38 +420,76 @@ public class ShaderPhysics : MonoBehaviour {
                 cams[n].targetTexture.filterMode = FilterMode.Point;
                 cams[n].nearClipPlane = .1f;
                 //
-                if (n == nTracked)
-                {
-                    if (display != null)
-                    {
-                        textureDisplay = new Texture2D(resCam, resCam);
-                        display.GetComponent<Renderer>().material.mainTexture = textureDisplay;
-                    }
-                }
+                displayTextures[n] = new Texture2D(resCam, resCam);
+                displayGos[n] = GameObject.CreatePrimitive(PrimitiveType.Quad);
+                displayGos[n].transform.localScale = new Vector3(10, 10, 10);
+                displayGos[n].transform.eulerAngles = new Vector3(90, 0, 0);
+                displayGos[n].GetComponent<Renderer>().material.mainTexture = displayTextures[n];
             }
             UpdateSensorValue(n);
+            UpdateDisplay(n);
+            UpdatePointer(n);
+            UpdateTarget(n);
             NavigateObject(n);
         }
     }
 
-    void NavigateObject(int n) {
-        bool ynSensor = ynSensors[n];
-        float s = 1;
-        //ynSensor = false;
-        if (ynSensor == true)
+    void UpdateTarget(int n) {
+        if (ynTargets == true)
         {
-            float yaw = Random.Range(180 - angRange, 180 + angRange);
-            //objectGos[n].transform.Rotate(0, yaw, 0);
-                //float pitch = Random.Range(-angRange, angRange);
-                 //objectGos[n].transform.Rotate(pitch, 0, 0);
-            s = turnAroundSpeedFactor;
-            targets[n] = objectGos[n].transform.position + objectGos[n].transform.forward * -10;
-        } else {
+            if (targetGos[n] == null)
+            {
+                if (parentTargetsGo == null)
+                {
+                    parentTargetsGo = new GameObject("parentTargetsGo");
+                }
+                //
+                targetGos[n] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                targetGos[n].layer = LayerMask.NameToLayer(layerHidden);
+                targetGos[n].transform.parent = parentTargetsGo.transform;
+                targetGos[n].transform.localScale = new Vector3(1, 1, 1);
+                //
+                lookGos[n] = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                lookGos[n].layer = LayerMask.NameToLayer(layerHidden);
+                lookGos[n].transform.parent = parentTargetsGo.transform;
+                lookGos[n].transform.localScale = new Vector3(1, 1, 1);
+                lookGos[n].GetComponent<Renderer>().material.color = Color.cyan;
+            }
+        }
+        else
+        {
+            if (parentTargetsGo != null)
+            {
+                DestroyImmediate(parentTargetsGo);
+            }
+        }
+        if (ynSensors[n] == true)
+        {
+            float yaw = yawPointers[n];
+            Vector3 vector = objectGos[n].transform.position - displayTargets[n];
+            targets[n] = objectGos[n].transform.position + Vector3.Normalize(vector) * 10;
+        }
+        else
+        {
             targets[n] = objectGos[n].transform.position + objectGos[n].transform.forward * 10;
         }
+    }
+
+    void NavigateObject(int n) {
         looks[n] = smooth * looks[n] + (1 - smooth) * targets[n];
+        //
+        if (ynTargets == true)
+        {
+            targetGos[n].transform.position = targets[n];
+            lookGos[n].transform.position = looks[n];
+        }
+        //
         objectGos[n].transform.LookAt(looks[n]);
-        objectGos[n].transform.position += objectGos[n].transform.forward * speed * s;
+        objectGos[n].transform.position += objectGos[n].transform.forward * speed;
+        Vector3 eul = objectGos[n].transform.eulerAngles;
+        objectGos[n].transform.eulerAngles = new Vector3(0, eul.y, 0);
+        Vector3 pos = objectGos[n].transform.position;
+        objectGos[n].transform.position = new Vector3(pos.x, meshHeight / 2, pos.z);
     }
 
     void UpdateSensorValue(int n) {
@@ -453,33 +502,64 @@ public class ShaderPhysics : MonoBehaviour {
             colorGo = Color.red;
             ynSensor = true;
         }
+        objectGos[n].GetComponent<Renderer>().material.color = colorGo;
+        ynSensors[n] = ynSensor;
         if (n == nTracked)
         {
             aveColor0 = aveColors[n];
             diffColor0 = diffColors[n];
             colorThreshold0 = colorThreshold;
             ynSensor0 = ynSensor;
-            UpdateDisplay();
         }
-        objectGos[n].GetComponent<Renderer>().material.color = colorGo;
-        ynSensors[n] = ynSensor;
     }
-    void UpdateDisplay() {
-        RenderTexture.active = cams[nTracked].targetTexture;
-        Texture2D tex = new Texture2D(resCam, resCam);
-        tex.ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
+    void UpdateDisplay(int n) {
+        displayGos[n].transform.position = objectGos[n].transform.position + Vector3.up * 30;
+        RenderTexture.active = cams[n].targetTexture;
+        displayTextures[n].ReadPixels(new Rect(0, 0, resCam, resCam), 0, 0);
         //
-        for (int nx = 0; nx < textureDisplay.width; nx++) {
-            for (int ny = 0; ny < textureDisplay.height; ny++) {
-                Color col = tex.GetPixel(nx, ny);
+        float sumX = 0;
+        float sumY = 0;
+        float cx = 0;
+        float cy = 0;
+        int cnt = 0;
+        //
+        for (int nx = 0; nx < displayTextures[n].width; nx++) {
+            for (int ny = 0; ny < displayTextures[n].height; ny++) {
+                Color col = displayTextures[n].GetPixel(nx, ny);
                 float diff = GetColorDiffTarget(col);
-                col = colorTarget * (1 - diff);
-                textureDisplay.SetPixel(nx, ny, col);
+                float value = 1 - diff;
+                col = colorTarget * value;
+                displayTextures[n].SetPixel(nx, ny, col);
+                if (value > colorThreshold) {
+                    sumX += nx * value;
+                    sumY += ny * value;
+                    cnt++;
+                }
+                if (value > colorThreshold) {
+                    displayTextures[n].SetPixel(nx, ny, Color.yellow);
+                }
             }        
         }
-        textureDisplay.Apply();
-        //
-        Destroy(tex);  // avoids memory leak 
+        cx = sumX / cnt;
+        cy = sumY / cnt;
+        if (ynSensors[n] == true)
+        {
+            yawPointers[n] = objectGos[n].transform.eulerAngles.y + (cx / resCam - .5f) * cams[n].fieldOfView;
+            displayTextures[n].SetPixel((int)cx, (int)cy, Color.red);
+            Vector3 pos = new Vector3(cx, cy, cams[n].nearClipPlane);
+            displayTargets[n] = cams[n].ScreenToWorldPoint(pos);
+        }
+        displayTextures[n].Apply();
+    }
+    void UpdatePointer(int n) {
+        float scalePointer = 0;
+        if (ynSensors[n] == true)
+        {
+            scalePointer = 20;
+        }
+        pointerGo.transform.position = objectGos[n].transform.position;
+        pointerGo.transform.localScale = new Vector3(.1f, .1f, scalePointer);
+        pointerGo.transform.eulerAngles = new Vector3(0, yawPointers[n], 0);
     }
     float GetColorDiffTarget(Color color) {
         Vector3 colorV3 = new Vector3(color.r, color.g, color.b);
