@@ -5658,6 +5658,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   scale: 1
+  ynStep: 0
 --- !u!4 &890598158
 Transform:
   m_ObjectHideFlags: 0

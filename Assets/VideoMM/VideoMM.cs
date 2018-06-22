@@ -18,10 +18,10 @@ public class VideoMM : MonoBehaviour {
     Vector3[] origsScale;
     Vector3[] looksScale;
     float smooth = .95f;
-    float smoothScale = .25f;
+    float smoothScale = .75f;
     float speed = 1f;
     float tolerance = 1f;
-    int nPicked;
+    int nPicked = -1;
     GameObject displayGo;
     VideoPlayer videoPlayer;
     Vector3 lookScaleDisplay;
@@ -31,13 +31,15 @@ public class VideoMM : MonoBehaviour {
     float delay = 1;
     float startTime;
     public bool ynStep = true;
+    Vector3 scaleSmall;
 
 	// Use this for initialization
 	void Start () {
+        scaleSmall = new Vector3(.01f, .01f, .01f);
         displayGo = GameObject.CreatePrimitive(PrimitiveType.Quad);
         displayGo.name = "display";
         videoPlayer = displayGo.AddComponent<VideoPlayer>();
-        displayGo.transform.localScale = new Vector3(0, 0, 0);
+        displayGo.transform.localScale = Vector3.zero;
         //
         videoGos = new GameObject[numNodes];
         videoClips = new VideoClip[numNodes];
@@ -101,16 +103,16 @@ public class VideoMM : MonoBehaviour {
     void PickVideo(int n)
     {
         RestoreTargets();
-        //Vector3 pos = Camera.main.transform.position + Camera.main.transform.forward * 3;
         Vector3 posTarget = GetDisplayTargetPosition();
         Vector3 posSource = videoPlayers[n].transform.position;
         targetsPos[n] = posTarget;
-        targetsScale[n] = new Vector3(.01f, .01f, .01f);
+        //Vector3 scaleSmall = new Vector3(.01f, .01f, .01f);
+        targetsScale[n] = scaleSmall;
         //
         displayGo.transform.position = posSource;
         displayGo.transform.eulerAngles = Camera.main.transform.eulerAngles;
         //
-        displayGo.transform.localScale = new Vector3(.01f, .01f, .01f);
+        displayGo.transform.localScale = scaleSmall;
         lookScaleDisplay = displayGo.transform.localScale;
         targetScaleDisplay = GetDisplayTargetScale();
         //
@@ -123,17 +125,8 @@ public class VideoMM : MonoBehaviour {
 
     Vector3 GetDisplayTargetScale() {
         Vector3 posLL = Camera.main.ScreenToWorldPoint(new Vector3(0, 0, Camera.main.nearClipPlane));
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.transform.localScale = new Vector3(.1f, .1f, .1f);
-        go.transform.position = posLL;
         Vector3 posLR = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width, 0, Camera.main.nearClipPlane));
-        go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.transform.localScale = new Vector3(.1f, .1f, .1f);
-        go.transform.position = posLR;
         Vector3 posUL = Camera.main.ScreenToWorldPoint(new Vector3(0, Screen.height, Camera.main.nearClipPlane));
-        go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.transform.localScale = new Vector3(.1f, .1f, .1f);
-        go.transform.position = posUL;
         float sx = Vector3.Distance(posLL, posLR);
         float sy = Vector3.Distance(posLL, posUL);
         return new Vector3(sx, sy, 1);
@@ -141,9 +134,6 @@ public class VideoMM : MonoBehaviour {
 
     Vector3 GetDisplayTargetPosition() {
         Vector3 posCenter = Camera.main.ScreenToWorldPoint(new Vector3(Screen.width / 2, Screen.height / 2, Camera.main.nearClipPlane));
-        GameObject go = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        go.transform.localScale = new Vector3(.1f, .1f, .1f);
-        go.transform.position = posCenter;
         return posCenter;
     }
 
@@ -153,10 +143,11 @@ public class VideoMM : MonoBehaviour {
         }
         lookScaleDisplay = smoothScale * targetScaleDisplay + (1 - smoothScale) * lookScaleDisplay;
         displayGo.transform.localScale = lookScaleDisplay;
-        //displayGo.transform.position = videoPlayers[nPicked].transform.position;
         //
-        lookPosDisplay = smooth * targetPosDisplay + (1 - smooth) * lookPosDisplay;
+        //
+        lookPosDisplay = smoothScale * targetPosDisplay + (1 - smoothScale) * lookPosDisplay;
         displayGo.transform.position = lookPosDisplay;
+        float dist = Vector3.Distance(displayGo.transform.position, targetPosDisplay);
     }
 
     void UpdateNode(int n) {
@@ -166,18 +157,15 @@ public class VideoMM : MonoBehaviour {
             looksPos[n] = smooth * targetsPos[n] + (1 - smooth) * looksPos[n];
             videoGos[n].transform.LookAt(looksPos[n]);
             //
-            looksScale[n] = smooth * targetsScale[n] + (1 - smooth) * looksScale[n];
+            looksScale[n] = smoothScale * targetsScale[n] + (1 - smoothScale) * looksScale[n];
             videoGos[n].transform.position += videoGos[n].transform.forward * speed;
-            //
         }
         videoGos[n].transform.localScale = looksScale[n];
-        //
     }
 
     void PickVideoRandom() {
         int n = Random.Range(0, numNodes);
         PickVideo(n);
-        Debug.Log(n + "\n");
     }
 
     void RestoreTargets() {
@@ -187,28 +175,33 @@ public class VideoMM : MonoBehaviour {
             audioSources[n].mute = true;
         }
         videoPlayer.Stop();
-        targetScaleDisplay = new Vector3(0, 0, 0);
+        targetScaleDisplay = Vector3.zero;
     }
 
     void UpdatePress() {
         if (Input.GetMouseButtonDown(0) == true) {
-            nPicked = -1;
+            bool ynFound = false;
             RaycastHit hit;
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out hit, 100.0f))
             {
                 string nam = hit.transform.name;
                 if (nam == "display") {
-                    RestoreTargets();                    
+                    RestoreTargets();
+                    ynFound = false;
                 } else {
-                    Debug.Log("You selected the " + nam + "\n"); // ensure you picked right object
                     string txt = nam.Substring(nam.Length - 1, 1);
                     int n = int.Parse(txt);
-                    nPicked = n;
-                    PickVideo(n);
+                    if (nPicked == -1)
+                    {
+                        nPicked = n;
+                        PickVideo(n);
+                    }
+                    ynFound = true;
                 }
             }
-            if (nPicked == -1) {
+            if (ynFound == false) {
+                nPicked = -1;
                 RestoreTargets();
             }
         }
